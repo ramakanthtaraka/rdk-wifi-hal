@@ -9771,6 +9771,8 @@ int nl80211_start_scan(wifi_interface_info_t *interface, uint flags,
     int ret;
     unsigned int i;
 
+    wifi_hal_stats_dbg_print("%s:%d: TRK num_freq : %d\n", __func__, __LINE__, num_freq);
+
     if ((msg = nl80211_drv_cmd_msg(g_wifi_hal.nl80211_id, interface, 0, NL80211_CMD_TRIGGER_SCAN)) == NULL) {
         return -1;
     }
@@ -9807,9 +9809,13 @@ int nl80211_start_scan(wifi_interface_info_t *interface, uint flags,
             wifi_hal_stats_error_print("%s:%d: [SCAN] nl message build failure (freq's)\n", __func__, __LINE__);
             goto failure;
         }
+        wifi_hal_stats_dbg_print("%s:%d: TRK num_freq : %d\n", __func__, __LINE__, num_freq);
         for (i = 0; i < num_freq; i++) {
-            if (0 == freq_list[i]) // <-- break the loop if freq is 0
+            if (0 == freq_list[i]) // <-- break the loop if freq is 0 
+            {
+                wifi_hal_stats_dbg_print("%s:%d: TRK freq_list[%d] : %d\n", __func__, __LINE__, i, freq_list[i]);
                 break;
+             }
             wifi_hal_stats_dbg_print("%s:%d: [SCAN] Added scan frequency %u MHz\n", __func__, __LINE__, freq_list[i]);
             if (nla_put_u32(msg, i + 1, freq_list[i])) {
                 wifi_hal_stats_error_print("%s:%d: [SCAN] nl message build failure (freq's)\n", __func__, __LINE__);

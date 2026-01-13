@@ -3143,6 +3143,10 @@ INT wifi_hal_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, I
     wifi_hal_stats_dbg_print("%s:%d: [SCAN] == ENTER (mode:%u, dwell_time:%d) ==\n", __func__,
         __LINE__, scan_mode, dwell_time);
 
+
+    wifi_hal_stats_dbg_print("%s:%d: TRK [SCAN] == ENTER (mode:%u, dwell_time:%d) chan_num : %d==\n", __func__,
+        __LINE__, scan_mode, dwell_time, chan_num);
+
     if (dwell_time < 0) {
         wifi_hal_stats_error_print("%s:%d: invalid dwell time: %d\n", __func__, __LINE__,
             dwell_time);
@@ -3330,7 +3334,11 @@ INT wifi_hal_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, I
         __func__, __LINE__, radio->oper_param.operatingClass, radio->oper_param.channel);
     switch (scan_mode) {
     case WIFI_RADIO_SCAN_MODE_ONCHAN: {
-        if (chan_num == 0 || chan_list == NULL) {
+    wifi_hal_stats_dbg_print("%s:%d: TRK\n", __func__,
+        __LINE__);
+    if (chan_num == 0 || chan_list == NULL) {
+        wifi_hal_stats_dbg_print("%s:%d: TRK chan_num : %d chan_list : %p\n", __func__,
+                __LINE__, chan_num, chan_list);
             chan_num = 1;
             current_channel = radio->oper_param.channel;
         }
@@ -3339,22 +3347,34 @@ INT wifi_hal_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, I
         if (RETURN_OK != set_freqs_filter(interface, chan_num, NULL))
             return WIFI_HAL_ERROR;
 
+       wifi_hal_stats_dbg_print("%s:%d: TRK chan_num : %d current_channel : %d\n", __func__,
+        __LINE__, chan_num, current_channel);
         // - convert channels to freqs
         for (i = 0; i < chan_num; i++) {
             if (is_ap_mode) {
                 // - verify the channel number (it is possible only in AP mode)
                 int i_freq;
 #if OPTION_GET_CHANNELS_FROM_HOSTAP == 0
+                wifi_hal_stats_dbg_print("%s:%d: TRK\n", __func__,
+                        __LINE__);
                 if (current_channel != 0) {
+                    wifi_hal_stats_dbg_print("%s:%d: TRK\n", __func__,
+                            __LINE__);
                     i_freq = channel_is_valid_from_radio(radio, current_channel);
                 } else {
+                    wifi_hal_stats_dbg_print("%s:%d: TRK\n", __func__,
+                            __LINE__);
                     i_freq = channel_is_valid_from_radio(radio, chan_list[i]);
                 }
 #else
                 pthread_mutex_lock(&g_wifi_hal.hapd_lock);
                 if (current_channel != 0) {
+                wifi_hal_stats_dbg_print("%s:%d: TRK\n", __func__,
+                        __LINE__);
                     i_freq = channel_is_valid_from_hapd(&interface->u.ap.hapd, current_channel);
                 } else {
+                wifi_hal_stats_dbg_print("%s:%d: TRK\n", __func__,
+                        __LINE__);
                     i_freq = channel_is_valid_from_hapd(&interface->u.ap.hapd, chan_list[i]);
                 }
                 pthread_mutex_unlock(&g_wifi_hal.hapd_lock);
@@ -3538,14 +3558,17 @@ INT wifi_hal_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, I
 #if CONFIG_NEIGHBOR_AP_SCAN_ACTIVE
         is_active_scan = true;
         ssid_list[0][0] = '\0'; /* SSID wildcard */
+        wifi_hal_dbg_print("%s:%d: TRK\n", __func__, __LINE__);
         res = nl80211_start_scan(interface, NL80211_SCAN_FLAG_AP | NL80211_SCAN_FLAG_FLUSH,
             interface->scan_filter.num, interface->scan_filter.values, dwell_time, 1, ssid_list);
 #else
+        wifi_hal_dbg_print("%s:%d: TRK\n", __func__, __LINE__);
         is_active_scan = false;
         res = nl80211_start_scan(interface, NL80211_SCAN_FLAG_AP | NL80211_SCAN_FLAG_FLUSH,
             interface->scan_filter.num, interface->scan_filter.values, dwell_time, 0, NULL);
 #endif
     } else {
+        wifi_hal_dbg_print("%s:%d: TRK\n", __func__, __LINE__);
         is_active_scan = true;
         wifi_strcpy(ssid_list[0], sizeof(ssid_list[0]), interface->vap_info.u.sta_info.ssid);
         res = nl80211_start_scan(interface, 0, interface->scan_filter.num,
