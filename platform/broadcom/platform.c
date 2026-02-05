@@ -393,6 +393,7 @@ int get_emu_neighbor_stats(uint radio_index, wifi_neighbor_ap2_t **neighbor_ap_a
 #endif // WIFI_EMULATOR_CHANGE
 #endif
 
+#if 0
 INT wifi_startNeighborScan(INT apIndex, wifi_neighborScanMode_t scan_mode, INT dwell_time, UINT chan_num, UINT *chan_list)
 {
     return wifi_hal_startNeighborScan(apIndex, scan_mode, dwell_time, chan_num, chan_list);
@@ -417,6 +418,7 @@ INT wifi_getNeighboringWiFiStatus(INT radio_index, wifi_neighbor_ap2_t **neighbo
 #endif // WIFI_EMULATOR_CHANGE
     return ret;
 }
+#endif
 
 int sta_disassociated(int ap_index, char *mac, int reason)
 {
@@ -3764,7 +3766,7 @@ static int get_channel_stats(wifi_interface_info_t *interface,
 
     return RETURN_OK;
 }
-
+#if 0
 INT wifi_getRadioChannelStats(INT radioIndex, wifi_channelStats_t *input_output_channelStats_array,
     INT array_size)
 {
@@ -3795,7 +3797,7 @@ INT wifi_getRadioChannelStats(INT radioIndex, wifi_channelStats_t *input_output_
 
     return RETURN_OK;
 }
-
+#endif
 static int get_radio_diag_handler(struct nl_msg *msg, void *arg)
 {
     int i;
