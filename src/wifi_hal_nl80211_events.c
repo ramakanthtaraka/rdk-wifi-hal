@@ -872,8 +872,11 @@ bool is_channel_supported_on_radio(wifi_freq_bands_t l_band, int freq)
 {
     if (l_band == WIFI_FREQUENCY_2_4_BAND && (freq >= MIN_FREQ_MHZ_2G && freq <= MAX_FREQ_MHZ_2G)) {
         return true;
-    } else if ((l_band == WIFI_FREQUENCY_5L_BAND || l_band == WIFI_FREQUENCY_5H_BAND ||
-                   l_band == WIFI_FREQUENCY_5_BAND) &&
+    } else if ((l_band == WIFI_FREQUENCY_5L_BAND) && (freq >= 5180 && freq <= 5320)) {
+        return true;
+    } else if ((l_band == WIFI_FREQUENCY_5H_BAND) && (freq >= 5500 && freq <= 5825)) {
+        return true;
+    } else if ((l_band == WIFI_FREQUENCY_5_BAND) &&
         (freq >= MIN_FREQ_MHZ_5G && freq <= MAX_FREQ_MHZ_5G)) {
         return true;
 #if HOSTAPD_VERSION >= 210
@@ -1147,6 +1150,7 @@ static void nl80211_ch_switch_notify_event(wifi_interface_info_t *interface, str
         radio_channel_param.channelWidth = l_channel_width;
         radio_channel_param.op_class = op_class;
         callbacks->channel_change_event_callback(radio_channel_param);
+        wifi_hal_error_print("%s:%d  TRK \n", __FUNCTION__, __LINE__);
     }
 
 }
@@ -1157,6 +1161,7 @@ static void nl80211_dfs_radar_event(wifi_interface_info_t *interface, struct nla
     wifi_interface_info_t *mgt_interface;
     enum nl80211_radar_event event_type = 0;
     int freq = 5180, cf1 = 5180, cf2 = 0, bw = 0, ht_enabled = 0, chan_offset = 0, bandwidth = 0;
+    wifi_hal_error_print("%s:%d  TRK\n", __FUNCTION__, __LINE__);
 
     radio = get_radio_by_rdk_index(interface->vap_info.radio_index);
     if (radio == NULL) {
@@ -1254,6 +1259,17 @@ static void nl80211_dfs_radar_event(wifi_interface_info_t *interface, struct nla
 
     if (tb[NL80211_ATTR_RADAR_EVENT]) {
         event_type = nla_get_u32(tb[NL80211_ATTR_RADAR_EVENT]);
+    }
+
+    // 5180MHz [36], 5320MHz [64], 5500MHz [100], 5825MHz [165]
+    if ((radio->oper_param.band == WIFI_FREQUENCY_5L_BAND) && (freq < 5180 || freq > 5320)) {
+        wifi_hal_error_print("%s:%d TRK return name:%s freq:%d cf1:%d cf2:%d chan_offset:%d event_type:%d bw:%d bandwidth:%d \n", __func__, __LINE__,
+                interface->name, freq, cf1, cf2, chan_offset, event_type, bw, bandwidth);
+        return;
+    } else if ((radio->oper_param.band == WIFI_FREQUENCY_5H_BAND) && (freq < 5500 || freq > 5825)) {
+        wifi_hal_error_print("%s:%d TRK return name:%s freq:%d cf1:%d cf2:%d chan_offset:%d event_type:%d bw:%d bandwidth:%d \n", __func__, __LINE__,
+                interface->name, freq, cf1, cf2, chan_offset, event_type, bw, bandwidth);
+        return;
     }
 
     wifi_hal_error_print("%s:%d name:%s freq:%d cf1:%d cf2:%d chan_offset:%d event_type:%d bw:%d bandwidth:%d \n", __func__, __LINE__,
@@ -1705,6 +1721,7 @@ static void do_process_drv_event(wifi_interface_info_t *interface, int cmd, stru
         break;
 
     case NL80211_CMD_RADAR_DETECT:
+        wifi_hal_error_print("%s:%d  TRK dfs NL80211_CMD_RADAR_DETECT\n", __FUNCTION__, __LINE__);
         nl80211_ch_switch_notify_event(interface, tb, WIFI_EVENT_DFS_RADAR_DETECTED);
         nl80211_dfs_radar_event(interface, tb);
         break;
