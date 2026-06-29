@@ -5041,9 +5041,11 @@ static int wiphy_dump_handler(struct nl_msg *msg, void *arg)
         capa->max_remain_on_chan = nla_get_u32(tb[NL80211_ATTR_MAX_REMAIN_ON_CHANNEL_DURATION]);
     }
 
+    /*
     if (tb[NL80211_ATTR_SUPPORT_AP_UAPSD]) {
         capa->flags |= WPA_DRIVER_FLAGS_AP_UAPSD;
     }
+    */
 
     if (tb[NL80211_ATTR_TDLS_SUPPORT]) {
         wifi_hal_info_print("%s:%d: nl80211: TDLS supported\n", __func__, __LINE__);
@@ -17284,7 +17286,8 @@ const struct wpa_driver_ops g_wpa_driver_nl80211_ops = {
     .get_mbssid_config = wifi_drv_get_mbssid_config,
     .get_sta_auth_type = wifi_drv_get_sta_auth_type,
 #if defined(FEATURE_HOSTAP_MGMT_FRAME_CTRL)
-    .get_ap_channel_report_ie = wifi_drv_get_ap_channel_report_ie,
+    //.get_ap_channel_report_ie = wifi_drv_get_ap_channel_report_ie,
+    .get_ap_channel_report_ie = NULL,
 #endif //defined(FEATURE_HOSTAP_MGMT_FRAME_CTRL)
     .get_handshake_status = wifi_drv_get_handshake_status,
 #endif /* HOSTAPD_VERSION >= 210 */
