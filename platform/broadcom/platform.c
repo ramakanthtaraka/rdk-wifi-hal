@@ -4159,7 +4159,7 @@ static void platform_get_radio_caps_5g(wifi_radio_info_t *radio, wifi_interface_
     struct hostapd_iface *iface = &interface->u.ap.iface;
 
     //radio->driver_data.capa.flags |= WPA_DRIVER_FLAGS_AP_UAPSD | WPA_DRIVER_FLAGS_DFS_OFFLOAD;
-    radio->driver_data.capa.flags |= WPA_DRIVER_FLAGS_DFS_OFFLOD;
+    radio->driver_data.capa.flags |= WPA_DRIVER_FLAGS_DFS_OFFLOAD;
 
 #if defined(XB10_PORT) || defined(SCXER10_PORT) || defined(TCHCBRV2_PORT) || defined(SKYSR213_PORT) || \
     defined(SCXF10_PORT)
