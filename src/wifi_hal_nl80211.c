@@ -13526,6 +13526,20 @@ static int nl80211_mbssid(struct nl_msg *msg, struct wpa_driver_ap_params *param
 }
 #endif
 
+static void my_print_hex_dump(unsigned int length, const unsigned char *buffer)
+{
+    unsigned int i, j;
+    char line[128];
+    for (i = 0; i < length; i += 16) {
+        int n = snprintf(line, sizeof(line), "%04x: ", i);
+        for (j = 0; j < 16 && (i + j) < length; j++) {
+            n += snprintf(line + n, sizeof(line) > n ? sizeof(line) - n : 0, "%02x ", buffer[i + j]);
+        }
+        wifi_hal_info_print("%s\n", line);
+    }
+}
+
+
 int wifi_drv_set_ap(void *priv, struct wpa_driver_ap_params *params)
 {
 #if defined(CONFIG_IEEE80211BE) && defined(CONFIG_MLO)
@@ -13569,10 +13583,10 @@ int wifi_drv_set_ap(void *priv, struct wpa_driver_ap_params *params)
         return -1;
     }
 
-    //wifi_hal_dbg_print("%s:%d: beacon head\n", __func__, __LINE__);
-    //my_print_hex_dump(params->head_len, params->head);
-    //wifi_hal_dbg_print("%s:%d: beacon tail\n", __func__, __LINE__);
-    //my_print_hex_dump(params->tail_len, params->tail);
+    wifi_hal_info_print("%s:%d: beacon head\n", __func__, __LINE__);
+    my_print_hex_dump(params->head_len, params->head);
+    wifi_hal_info_print("%s:%d: beacon tail\n", __func__, __LINE__);
+    my_print_hex_dump(params->tail_len, params->tail);
 
     nla_put(msg, NL80211_ATTR_BEACON_HEAD, params->head_len, params->head);
     nla_put(msg, NL80211_ATTR_BEACON_TAIL, params->tail_len, params->tail);
