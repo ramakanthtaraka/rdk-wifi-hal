@@ -13571,7 +13571,7 @@ int wifi_drv_set_ap(void *priv, struct wpa_driver_ap_params *params)
 
     beacon_set = params->reenable ? 0 : interface->beacon_set;
 
-    wifi_hal_dbg_print("%s:%d:Enter, interface name:%s vap index:%d radio index:%d beacon_set %d\n", __func__, __LINE__,
+    wifi_hal_info_print("%s:%d:Enter, interface name:%s vap index:%d radio index:%d beacon_set %d\n", __func__, __LINE__,
         interface->name, vap->vap_index, radio->index, beacon_set);
 
     if (beacon_set) {
@@ -13583,7 +13583,7 @@ int wifi_drv_set_ap(void *priv, struct wpa_driver_ap_params *params)
         return -1;
     }
 
-    wifi_hal_info_print("%s:%d: beacon head\n", __func__, __LINE__);
+    wifi_hal_info_print("%s:%d: interface name:%s beacon head\n", __func__, __LINE__, interface->name);
     my_print_hex_dump(params->head_len, params->head);
     wifi_hal_info_print("%s:%d: beacon tail\n", __func__, __LINE__);
     my_print_hex_dump(params->tail_len, params->tail);
