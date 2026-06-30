@@ -5041,11 +5041,9 @@ static int wiphy_dump_handler(struct nl_msg *msg, void *arg)
         capa->max_remain_on_chan = nla_get_u32(tb[NL80211_ATTR_MAX_REMAIN_ON_CHANNEL_DURATION]);
     }
 
-    /*
     if (tb[NL80211_ATTR_SUPPORT_AP_UAPSD]) {
         capa->flags |= WPA_DRIVER_FLAGS_AP_UAPSD;
     }
-    */
 
     if (tb[NL80211_ATTR_TDLS_SUPPORT]) {
         wifi_hal_info_print("%s:%d: nl80211: TDLS supported\n", __func__, __LINE__);

@@ -1181,8 +1181,8 @@ int update_hostap_bss(wifi_interface_info_t *interface)
 
     //wme_enabled, uapsd_enabled
     conf->wmm_enabled = vap->u.bss_info.wmm_enabled;
-    conf->wmm_uapsd = 0;
-    
+    conf->wmm_uapsd = vap->u.bss_info.UAPSDEnabled;
+
     conf->mdu = vap->u.bss_info.mdu_enabled;
 
     if (update_security_config(&vap->u.bss_info.security, conf) == -1) {
