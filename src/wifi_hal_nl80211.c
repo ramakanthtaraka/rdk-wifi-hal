@@ -7688,7 +7688,11 @@ int init_nl80211()
 
         if (radio->driver_data.capa.mbssid_max_interfaces == 0) {
             radio->driver_data.capa.mbssid_max_interfaces = MAX_MBSSID_INTERFACES;
+            wifi_hal_error_print("%s:%d TRK in 0 radio->driver_data.capa.mbssid_max_interfaces : %d\n",
+                            __func__, __LINE__, radio->driver_data.capa.mbssid_max_interfaces);
         }
+        wifi_hal_error_print("%s:%d TRK radio->driver_data.capa.mbssid_max_interfaces : %d\n",
+                                  __func__, __LINE__, radio->driver_data.capa.mbssid_max_interfaces);
 
 #endif // CONFIG_HW_CAPABILITIES
         // initialize the interface map
@@ -20740,6 +20744,8 @@ static u8 wifi_drv_mbssid_get_max_bssid_indicator(wifi_radio_info_t *radio)
     }
 
     num_bss_nontx = radio->driver_data.capa.mbssid_max_interfaces - 1;
+    wifi_hal_error_print("%s:%d TRK num_bss_nontx : %ld\n",
+                            __func__, __LINE__, num_bss_nontx);
     while (num_bss_nontx > 0) {
         max_bssid_ind++;
         num_bss_nontx >>= 1;
@@ -21173,6 +21179,8 @@ static u8 *wifi_drv_eid_mbssid_elem(wifi_radio_info_t *radio, wifi_interface_inf
             *eid++ = mbssid_index; /* BSSID Index */
             *eid++ = bss->conf->dtim_period;
             *eid++ = 0; /* DTIM Count, updated by driver */
+			wifi_hal_error_print("%s:%d TRK mbssid_index : %d\n",
+        __func__, __LINE__, mbssid_index);
         } else {
             /* Probe Request frame does not include DTIM Period and DTIM Count fields. */
             *eid++ = 1;
@@ -21202,7 +21210,9 @@ static u8 *wifi_drv_eid_mbssid_elem(wifi_radio_info_t *radio, wifi_interface_inf
         }
     }
 
-    *max_bssid_indicator_offset = max_bssid_indicator;
+	*max_bssid_indicator_offset = max_bssid_indicator;
+	wifi_hal_error_print("%s:%d TRK *max_bssid_indicator_offset : %d\n",
+			__func__, __LINE__, *max_bssid_indicator_offset);
     if (*max_bssid_indicator_offset < 1)
         *max_bssid_indicator_offset = 1;
     *eid_len_offset = (eid - eid_len_offset) - 1;

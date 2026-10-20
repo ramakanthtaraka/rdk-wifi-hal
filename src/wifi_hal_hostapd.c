@@ -3397,17 +3397,25 @@ wifi_interface_info_t *wifi_hal_get_mbssid_tx_interface(wifi_radio_info_t *radio
     pthread_mutex_lock(&g_wifi_hal.hapd_lock);
     hash_map_foreach(radio->interface_map, interface_iter) {
         if (interface_iter->vap_info.vap_mode != wifi_vap_mode_ap) {
+             wifi_hal_error_print("%s:%d:TRK vap:%s to continue\n", __func__,
+                      __LINE__, interface_iter->vap_info.vap_name);
             continue;
         }
 
         bss = &interface_iter->u.ap.hapd;
         if (bss->iconf == NULL || bss->iconf->mbssid == MBSSID_DISABLED || bss->conf == NULL) {
+             wifi_hal_error_print("%s:%d: TRK vap:%s iconf to continue\n", __func__,
+                      __LINE__, interface_iter->vap_info.vap_name);
             continue;
         }
 
         if (bss->started) {
+            wifi_hal_error_print("%s:%d: TRK vap:%s bss->started\n", __func__,
+                    __LINE__, interface_iter->vap_info.vap_name);
             break;
         }
+        wifi_hal_error_print("%s:%d: TRK vap:%s in while\n", __func__,
+                    __LINE__, interface_iter->vap_info.vap_name);
     }
     pthread_mutex_unlock(&g_wifi_hal.hapd_lock);
 
