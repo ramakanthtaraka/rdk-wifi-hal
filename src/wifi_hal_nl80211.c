@@ -17372,6 +17372,13 @@ static bool add_eid_rnr_bss(struct hostapd_data *hapd, struct hostapd_data *repo
 #else
         *eid++ = op_class;
 #endif
+        wifi_hal_dbg_print("%s:%d RNR(BE) report_if=%s report_freq=%d target_if=%s target_freq=%d target_channel=%u op_class=%u tbtt_info_len=%u mld_update=%d\n",
+            __func__, __LINE__,
+            (reporting_hapd->conf && reporting_hapd->conf->iface) ? reporting_hapd->conf->iface : "n/a",
+            reporting_hapd->iface ? reporting_hapd->iface->freq : 0,
+            (bss->conf && bss->conf->iface) ? bss->conf->iface : "n/a",
+            bss->iface ? bss->iface->freq : 0, bss->iconf->channel, op_class, tbtt_info_len,
+            mld_update);
         *eid++ = bss->iconf->channel;
         *len += RNR_TBTT_HEADER_LEN;
     }
@@ -17776,6 +17783,13 @@ static u8 *add_eid_rnr_iface(wifi_radio_info_t *radio, wifi_interface_info_t *re
         tbtt_count_pos = eid++;
         *eid++ = RNR_TBTT_INFO_LEN;
         *eid++ = op_class;
+        wifi_hal_dbg_print("%s:%d RNR(legacy) report_if=%s report_freq=%d header_if=%s header_freq=%d header_channel=%u op_class=%u\n",
+            __func__, __LINE__,
+            (reporting_interface->u.ap.hapd.conf && reporting_interface->u.ap.hapd.conf->iface) ?
+            reporting_interface->u.ap.hapd.conf->iface : "n/a",
+            reporting_interface->u.ap.hapd.iface ? reporting_interface->u.ap.hapd.iface->freq : 0,
+            (hapd->conf && hapd->conf->iface) ? hapd->conf->iface : "n/a",
+            hapd->iface ? hapd->iface->freq : 0, channel, op_class);
         *eid++ = channel;
         len += RNR_TBTT_HEADER_LEN;
 
@@ -17824,6 +17838,12 @@ static u8 *add_eid_rnr_iface(wifi_radio_info_t *radio, wifi_interface_info_t *re
 
             *eid++ = bss_param;
             *eid++ = RNR_20_MHZ_PSD_MAX_TXPOWER - 1;
+            wifi_hal_dbg_print("%s:%d RNR(legacy) report_if=%s advertised_target_if=%s target_freq=%d advertised_channel=%u target_channel=%u op_class=%u\n",
+                __func__, __LINE__,
+                (reporting_interface->u.ap.hapd.conf && reporting_interface->u.ap.hapd.conf->iface) ?
+                reporting_interface->u.ap.hapd.conf->iface : "n/a",
+                (hapd->conf && hapd->conf->iface) ? hapd->conf->iface : "n/a",
+                hapd->iface ? hapd->iface->freq : 0, channel, hapd->iconf->channel, op_class);
             len += RNR_TBTT_INFO_LEN;
             tbtt_count += 1;
         }
@@ -18614,6 +18634,14 @@ u8 *wifi_drv_get_ap_channel_report_ie(void *priv, u8 *eid)
 
     wifi_interface_info_t *interface = (wifi_interface_info_t *)priv;
 
+    if (interface == NULL) {
+        wifi_hal_error_print("%s:%d interface is null\n", __func__, __LINE__);
+        return eid;
+    }
+
+    wifi_hal_dbg_print("%s:%d Building AP channel report IE for radio index %d\n", __func__, __LINE__,
+        interface->vap_info.radio_index);
+
     radio = get_radio_by_rdk_index(interface->vap_info.radio_index);
     if (radio == NULL) {
         wifi_hal_error_print("%s:%d failed to get radio for index: %d\n", __func__, __LINE__,
@@ -18624,8 +18652,15 @@ u8 *wifi_drv_get_ap_channel_report_ie(void *priv, u8 *eid)
     for (i = 0; i < g_wifi_hal.num_radios; i++) {
         temp_radio = get_radio_by_rdk_index(i);
         if (!temp_radio || (temp_radio->oper_param.enable == false) ||
-            (temp_radio->rdk_radio_index == radio->rdk_radio_index))
+            (temp_radio->rdk_radio_index == radio->rdk_radio_index)) {
+            wifi_hal_dbg_print(
+                "%s:%d Skipping radio index %zu (radio %s, enabled %s, same as source %s)\n",
+                __func__, __LINE__, i, temp_radio ? "present" : "null",
+                (temp_radio && temp_radio->oper_param.enable) ? "true" : "false",
+                (temp_radio && temp_radio->rdk_radio_index == radio->rdk_radio_index) ? "true" :
+                                                                                          "false");
             continue;
+        }
 
         struct hostapd_data *hapd;
         wifi_interface_info_t *interface_iter = hash_map_get_first(temp_radio->interface_map);
@@ -18640,9 +18675,16 @@ u8 *wifi_drv_get_ap_channel_report_ie(void *priv, u8 *eid)
             if (hapd->iface == NULL || hapd->iconf == NULL ||
                 ieee80211_freq_to_channel_ext(hapd->iface->freq, hapd->iconf->secondary_channel,
                     hostapd_get_oper_chwidth(hapd->iconf), &op_class, &channel) == NUM_HOSTAPD_MODES) {
+                wifi_hal_dbg_print(
+                    "%s:%d Skipping VAP %d on radio %d for AP channel report IE (iface/iconf/opclass invalid)\n",
+                    __func__, __LINE__, interface_iter->vap_info.vap_index,
+                    temp_radio->rdk_radio_index);
                 interface_iter = hash_map_get_next(temp_radio->interface_map, interface_iter);
                 continue;
             }
+            wifi_hal_dbg_print(
+                "%s:%d Adding AP channel report IE from radio %d with op_class %u channel %u\n",
+                __func__, __LINE__, temp_radio->rdk_radio_index, op_class, channel);
             *eid++ = WLAN_EID_AP_CHANNEL_REPORT;
             *eid++ = 2;
             *eid++ = op_class;
@@ -18651,7 +18693,7 @@ u8 *wifi_drv_get_ap_channel_report_ie(void *priv, u8 *eid)
         }
     }
 
-    return eid;
+     return eid;
 }
 #endif // defined(FEATURE_HOSTAP_MGMT_FRAME_CTRL)
 #endif /* HOSTAPD_VERSION >= 210 */
