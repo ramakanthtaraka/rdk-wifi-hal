@@ -146,18 +146,36 @@ static int get_chanspec_string(wifi_radio_operationParam_t *operationParam, char
 int sta_disassociated(int ap_index, char *mac, int reason);
 int sta_deauthenticated(int ap_index, char *mac, int reason);
 int sta_associated(int ap_index, wifi_associated_dev_t *associated_dev);
-#if defined(ENABLED_EDPD)
+#if defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
 static int check_edpdctl_enabled();
 static int check_dpd_feature_enabled();
 static int enable_echo_feature_and_power_control_configs(void);
 int platform_set_ecomode_for_radio(const int wl_idx, const bool eco_pwr_down);
 int platform_set_gpio_config_for_ecomode(const int wl_idx, const bool eco_pwr_down);
-#endif // defined(ENABLED_EDPD)
+#endif // defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
+
+#if  defined(_XER2_PRODUCT_REQ_) && defined (ENABLED_EDPD)
+#define FEM_GPIO_REG_ADDR "0xff800520"
+#define FEM_GPIO_REG_ADDR_VAL 0xFF800520U
+//HIGH == Radio ON, LOW == Radio OFF
+#define FEM_GPIO_24G_HIGH_MASK 0x04000000U
+#define FEM_GPIO_5G_HIGH_MASK  0x00002000U
+#define FEM_GPIO_24G_LOW_MASK  0xFBFFFFFFU
+#define FEM_GPIO_5G_LOW_MASK   0xFFFFDFFFU
+#define FEM_GPIO_BOTH_LOW_MASK 0xFBFFDFFFU
+#define FEM_GPIO_BOTH_HIGH_MASK (FEM_GPIO_24G_HIGH_MASK | FEM_GPIO_5G_HIGH_MASK)
+static int read_fem_gpio_reg(unsigned int *reg_val);
+static int write_fem_gpio_reg(unsigned int reg_val);
+static int set_fem_gpio_for_ecomode(int wl_idx, bool eco_pwr_down);
+#endif
 
 #ifdef CONFIG_IEEE80211BE
 static void nvram_update_wl_mlo_config(unsigned int radio_index, int mld_link_id,
     int *nvram_changed);
 #endif
+
+
+
 
 #ifndef NEWPLATFORM_PORT
 static char const *bss_nvifname[] = {
@@ -1250,6 +1268,116 @@ int platform_set_acs_exclusion_list(unsigned int radioIndex, char* str)
     return RETURN_OK;
 }
 
+#if  defined(_XER2_PRODUCT_REQ_) && defined (ENABLED_EDPD)
+static int read_fem_gpio_reg(unsigned int *reg_val)
+{
+    FILE *fp = NULL;
+    char line[BUFLEN_128] = {0};
+
+    if (reg_val == NULL) {
+        wifi_hal_error_print("%s:%d Invalid reg_val\n", __func__, __LINE__);
+        return RETURN_ERR;
+    }
+
+    fp = v_secure_popen("r", "/opt/scripts/dw %s", FEM_GPIO_REG_ADDR);
+    if (fp == NULL) {
+        wifi_hal_error_print("%s:%d Failed to read FEM GPIO register\n", __func__, __LINE__);
+        return RETURN_ERR;
+    }
+
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        char col1[32] = {0}, col2[32] = {0}, col3[32] = {0};
+        unsigned int addr = 0;
+        unsigned int value = 0;
+
+        if (sscanf(line, "%31s %31s %31s", col1, col2, col3) != 3) {
+            continue;
+        }
+
+        if (sscanf(col1, "0x%x", &addr) != 1 || addr != FEM_GPIO_REG_ADDR_VAL) {
+            continue;
+        }
+
+        if (sscanf(col3, "%x", &value) != 1) {
+            continue;
+        }
+
+        *reg_val = value;
+        v_secure_pclose(fp);
+        return RETURN_OK;
+    }
+
+    v_secure_pclose(fp);
+    wifi_hal_error_print("%s:%d Failed to parse FEM GPIO register value\n", __func__, __LINE__);
+    return RETURN_ERR;
+}
+
+
+static int write_fem_gpio_reg(unsigned int reg_val)
+{
+    int rc;
+    char reg_val_str[16] = {0};
+
+    snprintf(reg_val_str, sizeof(reg_val_str), "0x%08x", reg_val);
+
+    rc = v_secure_system("/opt/scripts/sw %s %s", FEM_GPIO_REG_ADDR, reg_val_str);
+    if (rc != 0) {
+        wifi_hal_error_print("%s:%d Failed to write FEM GPIO register value=0x%08x\n",
+            __func__, __LINE__, reg_val);
+        return RETURN_ERR;
+    }
+
+    set_string_nvram_param("xer2_eco_mode", reg_val_str);
+   nvram_commit();
+
+    return RETURN_OK;
+}
+
+static int set_fem_gpio_for_ecomode(int wl_idx, bool eco_pwr_down)
+{
+    unsigned int reg_val;
+    unsigned int updated;
+
+    if (read_fem_gpio_reg(&reg_val) != RETURN_OK) {
+        wifi_hal_error_print("%s:%d Failed to read FEM GPIO register for wl_idx=%d\n",
+            __func__, __LINE__, wl_idx);
+        return RETURN_ERR;
+    }
+
+    updated = reg_val;
+    //eco_pwr_down == true means power down the radio, set GPIO LOW
+    //eco_pwr_down == false means power up the radio, set GPIO HIGH
+    if (eco_pwr_down) {
+        if (wl_idx == RADIO_INDEX_2G) {
+            updated &= FEM_GPIO_24G_LOW_MASK;
+        } else if (wl_idx == RADIO_INDEX_5G) {
+            updated &= FEM_GPIO_5G_LOW_MASK;
+        } else {
+            updated &= FEM_GPIO_BOTH_LOW_MASK;
+        }
+    } else {
+        if (wl_idx == RADIO_INDEX_2G) {
+            updated |= FEM_GPIO_24G_HIGH_MASK;
+        } else if (wl_idx == RADIO_INDEX_5G) {
+            updated |= FEM_GPIO_5G_HIGH_MASK;
+        } else {
+            updated |= FEM_GPIO_BOTH_HIGH_MASK;
+        }
+    }
+
+    if (write_fem_gpio_reg(updated) != RETURN_OK) {
+        wifi_hal_error_print("%s:%d Failed FEM GPIO update for wl_idx=%d eco_pwr_down=%d\n",
+            __func__, __LINE__, wl_idx, eco_pwr_down);
+        return RETURN_ERR;
+    }
+
+    wifi_hal_info_print("%s:%d wl_idx=%d eco_pwr_down=%d reg[0xff800520]: 0x%08x -> 0x%08x\n",
+        __func__, __LINE__, wl_idx, eco_pwr_down, reg_val, updated);
+    return RETURN_OK;
+}
+#endif // defined(_XER2_PRODUCT_REQ_) && defined (ENABLED_EDPD)
+
+
 int platform_set_radio_pre_init(wifi_radio_index_t index, wifi_radio_operationParam_t *operationParam)
 {
     if (operationParam == NULL) {
@@ -1277,7 +1405,7 @@ int platform_set_radio_pre_init(wifi_radio_index_t index, wifi_radio_operationPa
         return RETURN_ERR;
     }
 
-#if defined(ENABLED_EDPD)
+#if defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
     int ret = 0;
     if (operationParam->EcoPowerDown) {
         /* Enable eco mode feature and power control configurations. */
@@ -1384,7 +1512,17 @@ int platform_set_radio_pre_init(wifi_radio_index_t index, wifi_radio_operationPa
 		}
 #endif //MLO_ENAB
     }
-#endif // defined(ENABLED_EDPD)
+#endif // defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
+
+#if  defined(_XER2_PRODUCT_REQ_) && defined (ENABLED_EDPD)
+    // Set FEM GPIO according to EcoPowerDown status
+    // EcoPowerDown == true means power down the radio, set GPIO LOW
+    // EcoPowerDown == false means power up the radio, set GPIO HIGH
+    if (set_fem_gpio_for_ecomode(index, operationParam->EcoPowerDown) != RETURN_OK) {
+        wifi_hal_error_print("%s:%d FEM GPIO register update failed for radio index %d\n",
+                __func__, __LINE__, index);
+    }
+#endif //defined(_XER2_PRODUCT_REQ_) && defined (ENABLED_EDPD)
 
     if (radio->radio_presence == false) {
         wifi_hal_dbg_print("%s:%d Skip this radio %d. This is in sleeping mode\n", __FUNCTION__, __LINE__, index);
@@ -3133,7 +3271,7 @@ int platform_get_radio_phytemperature(wifi_radio_index_t index,
 
 #endif // TCXB7_PORT || TCXB8_PORT || XB10_PORT || RDKB_ONE_WIFI_PROD
 
-#if defined(ENABLED_EDPD)
+#if defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
 /* EDPD - WLAN Power down control support APIs. */
 #define GPIO_PIN_24G_RADIO 101
 #define GPIO_PIN_5G_RADIO 102
