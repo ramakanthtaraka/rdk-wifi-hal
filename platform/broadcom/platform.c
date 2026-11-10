@@ -146,13 +146,13 @@ static int get_chanspec_string(wifi_radio_operationParam_t *operationParam, char
 int sta_disassociated(int ap_index, char *mac, int reason);
 int sta_deauthenticated(int ap_index, char *mac, int reason);
 int sta_associated(int ap_index, wifi_associated_dev_t *associated_dev);
-#if defined(ENABLED_EDPD)
+#if defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
 static int check_edpdctl_enabled();
 static int check_dpd_feature_enabled();
 static int enable_echo_feature_and_power_control_configs(void);
 int platform_set_ecomode_for_radio(const int wl_idx, const bool eco_pwr_down);
 int platform_set_gpio_config_for_ecomode(const int wl_idx, const bool eco_pwr_down);
-#endif // defined(ENABLED_EDPD)
+#endif // defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
 
 #ifdef CONFIG_IEEE80211BE
 static void nvram_update_wl_mlo_config(unsigned int radio_index, int mld_link_id,
@@ -1250,6 +1250,7 @@ int platform_set_acs_exclusion_list(unsigned int radioIndex, char* str)
     return RETURN_OK;
 }
 
+
 int platform_set_radio_pre_init(wifi_radio_index_t index, wifi_radio_operationParam_t *operationParam)
 {
     if (operationParam == NULL) {
@@ -1271,13 +1272,17 @@ int platform_set_radio_pre_init(wifi_radio_index_t index, wifi_radio_operationPa
     wifi_radio_info_t *radio_info;
 #endif // MLO_ENAB && ENABLED_EDPD
 
+#if  defined(_XER2_PRODUCT_REQ_) && defined (ENABLED_EDPD)
+    int rc = 0;
+#endif //defined(_XER2_PRODUCT_REQ_) && defined (ENABLED_EDPD)
+
     radio = get_radio_by_rdk_index(index);
     if (radio == NULL) {
         wifi_hal_dbg_print("%s:%d:Could not find radio index:%d\n", __func__, __LINE__, index);
         return RETURN_ERR;
     }
 
-#if defined(ENABLED_EDPD)
+#if defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
     int ret = 0;
     if (operationParam->EcoPowerDown) {
         /* Enable eco mode feature and power control configurations. */
@@ -1384,7 +1389,19 @@ int platform_set_radio_pre_init(wifi_radio_index_t index, wifi_radio_operationPa
 		}
 #endif //MLO_ENAB
     }
-#endif // defined(ENABLED_EDPD)
+#endif // defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
+
+#if  defined(_XER2_PRODUCT_REQ_) && defined (ENABLED_EDPD)
+    // Set FEM GPIO according to EcoPowerDown status
+    // EcoPowerDown == true means power down the radio, set GPIO LOW
+    // EcoPowerDown == false means power up the radio, set GPIO HIGH
+    rc = v_secure_system("/etc/comcast/radio_fem_gpio_ecomode.sh %d %d", index, operationParam->EcoPowerDown);
+    if (rc != 0) {
+        wifi_hal_error_print("%s:%d Failed to set ecomode : %d for radio index : %d\n",
+            __func__, __LINE__, operationParam->EcoPowerDown, index);
+        return RETURN_ERR;
+    }
+#endif //defined(_XER2_PRODUCT_REQ_) && defined (ENABLED_EDPD)
 
     if (radio->radio_presence == false) {
         wifi_hal_dbg_print("%s:%d Skip this radio %d. This is in sleeping mode\n", __FUNCTION__, __LINE__, index);
@@ -3133,7 +3150,7 @@ int platform_get_radio_phytemperature(wifi_radio_index_t index,
 
 #endif // TCXB7_PORT || TCXB8_PORT || XB10_PORT || RDKB_ONE_WIFI_PROD
 
-#if defined(ENABLED_EDPD)
+#if defined(ENABLED_EDPD) && !defined(_XER2_PRODUCT_REQ_)
 /* EDPD - WLAN Power down control support APIs. */
 #define GPIO_PIN_24G_RADIO 101
 #define GPIO_PIN_5G_RADIO 102
